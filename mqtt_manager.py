@@ -222,6 +222,12 @@ class MosquittoUserManager:
     def __init__(self):
         self.executor = CommandExecutor()
 
+    @staticmethod
+    def _print_service_reload_hint():
+        """提示用户变更需要重新加载或重启服务才能生效"""
+        click.echo("提示: 用户变更后需要重新加载或重启 mosquitto 服务才能生效。")
+        click.echo("如果未配置 reload，请执行: sudo python3 mqtt_manager.py service restart")
+
     def add_user(self, username: str, password: str = None):
         """添加用户"""
         self.executor.check_root()
@@ -248,6 +254,7 @@ class MosquittoUserManager:
         secure_password_file(passwd_path)
 
         click.echo(f"用户 {username} 添加成功")
+        self._print_service_reload_hint()
 
     def delete_user(self, username: str):
         """删除用户"""
@@ -262,6 +269,7 @@ class MosquittoUserManager:
         self.executor.run(cmd)
 
         click.echo(f"用户 {username} 删除成功")
+        self._print_service_reload_hint()
 
     def list_users(self):
         """列出所有用户"""

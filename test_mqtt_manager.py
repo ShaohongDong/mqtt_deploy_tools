@@ -139,6 +139,36 @@ class MQTTManagerTestCase(unittest.TestCase):
         self.assertEqual(passwd_path.stat().st_mode & 0o777, 0o700)
         mocked_chown.assert_called_with(passwd_path, 1883, 1883)
 
+    def test_add_user_prints_service_reload_hint(self):
+        """添加用户后应提示重新加载或重启服务"""
+        user_mgr = MosquittoUserManager()
+
+        with patch.object(CommandExecutor, "check_root", return_value=None), \
+             patch.object(CommandExecutor, "run"), \
+             patch("click.echo") as mocked_echo:
+            user_mgr.add_user("alice", "secret")
+
+        echoed_messages = [call.args[0] for call in mocked_echo.call_args_list if call.args]
+        self.assertTrue(any("重新加载或重启 mosquitto 服务" in msg for msg in echoed_messages))
+        self.assertTrue(any("service restart" in msg for msg in echoed_messages))
+
+    def test_delete_user_prints_service_reload_hint(self):
+        """删除用户后应提示重新加载或重启服务"""
+        Path(mqtt_manager.MOSQUITTO_PASSWD_FILE).write_text(
+            "alice:$7$existing-hash\n",
+            encoding="utf-8"
+        )
+        user_mgr = MosquittoUserManager()
+
+        with patch.object(CommandExecutor, "check_root", return_value=None), \
+             patch.object(CommandExecutor, "run"), \
+             patch("click.echo") as mocked_echo:
+            user_mgr.delete_user("alice")
+
+        echoed_messages = [call.args[0] for call in mocked_echo.call_args_list if call.args]
+        self.assertTrue(any("重新加载或重启 mosquitto 服务" in msg for msg in echoed_messages))
+        self.assertTrue(any("service restart" in msg for msg in echoed_messages))
+
     def test_monitor_uses_detected_port_and_credentials(self):
         """监控命令应带上检测出的端口和鉴权参数"""
         Path(mqtt_manager.MOSQUITTO_CONF).write_text(
