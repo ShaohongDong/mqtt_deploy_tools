@@ -142,6 +142,34 @@ sudo ./mqtt_manager.py service disable
 ./mqtt_manager.py monitor --host localhost --port 1884 --username testuser
 ```
 
+### 外网回环测试
+
+从外网机器验证 MQTT 服务是否可达、可认证、可收发消息:
+
+```bash
+python3 mqtt_external_test.py --host mqtt.example.com
+```
+
+使用用户名密码测试公网访问:
+
+```bash
+python3 mqtt_external_test.py --host mqtt.example.com --port 1883 --username testuser
+```
+
+指定主题、消息和超时时间:
+
+```bash
+python3 mqtt_external_test.py \
+  --host mqtt.example.com \
+  --topic ops/healthcheck \
+  --message "hello from internet" \
+  --timeout 8
+```
+
+说明:
+该工具会先订阅测试主题，再发布一条唯一测试消息，并在超时时间内确认是否收到回环消息。
+建议在外网机器上执行，用于验证公网地址、端口放通和鉴权配置是否正常。
+
 ### 查看日志
 
 查看最近50行日志:
