@@ -31,6 +31,38 @@ pip3 install -r requirements.txt
 chmod +x mqtt_manager.py
 ```
 
+### Windows安装 mosquitto-clients
+
+如果需要在Windows机器上使用 `mqtt_external_test.py` 进行公网连通性验证，先安装 Mosquitto 客户端工具。
+
+方法一：使用官方安装包
+
+1. 打开下载页: `https://mosquitto.org/download/`
+2. 下载 Windows 安装包并完成安装
+3. 确认安装目录已加入 `Path`，常见目录为 `C:\Program Files\mosquitto\`
+4. 打开新的 PowerShell 或 cmd 验证:
+
+```powershell
+mosquitto_pub --help
+mosquitto_sub --help
+```
+
+方法二：使用 `winget`
+
+```powershell
+winget search mosquitto
+winget install EclipseMosquitto.Mosquitto
+```
+
+安装完成后验证:
+
+```powershell
+mosquitto_pub --help
+mosquitto_sub --help
+```
+
+如果提示找不到命令，可以直接使用安装目录中的可执行文件，或将 `C:\Program Files\mosquitto\` 手动加入系统环境变量 `Path`。
+
 ## 使用方法
 
 ### 安装Mosquitto
