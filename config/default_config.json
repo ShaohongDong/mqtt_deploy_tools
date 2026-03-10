@@ -1,0 +1,7 @@
+{
+  "port": 1883,
+  "websocket_port": 9001,
+  "allow_anonymous": false,
+  "persistence": true,
+  "log_dest": "syslog"
+}
