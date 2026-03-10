@@ -9,6 +9,8 @@ import sys
 import subprocess
 import json
 import getpass
+import grp
+import pwd
 from pathlib import Path
 from typing import Dict, List, Optional
 import click
@@ -19,6 +21,25 @@ CONFIG_DIR = SCRIPT_DIR / "config"
 MOSQUITTO_CONF = "/etc/mosquitto/mosquitto.conf"
 MOSQUITTO_PASSWD_FILE = "/etc/mosquitto/passwd"
 DEFAULT_CONFIG_FILE = CONFIG_DIR / "default_config.json"
+
+
+def secure_password_file(passwd_path: Path):
+    """收紧密码文件权限，避免Mosquitto因权限问题拒绝加载"""
+    if not passwd_path.exists():
+        return
+
+    passwd_path.chmod(0o700)
+
+    try:
+        uid = pwd.getpwnam("mosquitto").pw_uid
+        gid = grp.getgrnam("mosquitto").gr_gid
+    except KeyError:
+        return
+
+    try:
+        os.chown(passwd_path, uid, gid)
+    except PermissionError:
+        return
 
 
 class CommandExecutor:
@@ -38,6 +59,8 @@ class CommandExecutor:
             else:
                 result = subprocess.run(cmd, check=check)
             return result
+        except FileNotFoundError:
+            raise click.ClickException(f"未找到系统命令: {cmd[0]}，请先安装相关程序")
         except subprocess.CalledProcessError as e:
             click.echo(f"命令执行失败: {' '.join(cmd)}", err=True)
             if e.stderr:
@@ -142,11 +165,13 @@ class MosquittoConfig:
         """确保鉴权配置引用的密码文件存在"""
         passwd_path = Path(MOSQUITTO_PASSWD_FILE)
         if passwd_path.exists():
+            secure_password_file(passwd_path)
             return
 
         click.echo(f"创建空密码文件: {passwd_path}")
         passwd_path.parent.mkdir(parents=True, exist_ok=True)
         passwd_path.touch()
+        secure_password_file(passwd_path)
 
     def _build_config_content(self, config: Dict) -> str:
         """构建配置文件内容"""
@@ -216,10 +241,11 @@ class MosquittoUserManager:
 
         # 使用mosquitto_passwd添加用户
         cmd = ["mosquitto_passwd", "-b"]
-        if not passwd_path.exists():
+        if not passwd_path.exists() or passwd_path.stat().st_size == 0:
             cmd.append("-c")
         cmd.extend([MOSQUITTO_PASSWD_FILE, username, password])
         self.executor.run(cmd)
+        secure_password_file(passwd_path)
 
         click.echo(f"用户 {username} 添加成功")
 
@@ -355,7 +381,7 @@ class MosquittoMonitor:
             password = getpass.getpass(f"请输入用户 {username} 的密码: ")
 
         click.echo("监控mosquitto服务 (按Ctrl+C退出)...")
-        click.echo("订阅$SYS主题获取系统信息...")
+        click.echo(f"订阅主题: {topic}")
         click.echo(f"连接目标: {host}:{resolved_port}")
 
         try:
@@ -365,6 +391,8 @@ class MosquittoMonitor:
             if password:
                 cmd.extend(["-P", password])
             subprocess.run(cmd)
+        except FileNotFoundError:
+            raise click.ClickException("未找到系统命令: mosquitto_sub，请先安装 mosquitto-clients")
         except KeyboardInterrupt:
             click.echo("\n监控已停止")
 
